@@ -233,21 +233,30 @@
             currentTimerValue = seconds;
             updateTimerDisplay();
             canSelect = true;
+
             if (countdownInterval) clearInterval(countdownInterval);
+
             countdownInterval = setInterval(() => {
                 currentTimerValue--;
                 updateTimerDisplay();
+
                 if (currentTimerValue <= 5 && currentTimerValue > 0) {
-                    countdownSound.currentTime = 0; countdownSound.play();
+                    countdownSound.currentTime = 0;
+                    // ใช้การดักจับเหมือน playAudio
+                    countdownSound.play().catch(()=>{}); 
                 }
+
                 if (currentTimerValue <= 0) {
                     clearInterval(countdownInterval);
                     canSelect = false;
+                    
+                    // ใช้เวลาหน่วงที่แน่นอนก่อนเข้า Phase ถัดไป
                     setTimeout(() => {
                         timerUI.classList.add("hidden");
-                        countdownSound.pause(); countdownSound.currentTime = 0;
+                        countdownSound.pause();
+                        countdownSound.currentTime = 0;
                         if (callback) callback();
-                    }, 800); 
+                    }, 800);
                 }
             }, 1000);
         }
@@ -275,6 +284,13 @@
         }
 
         nightToggle.addEventListener("click", () => {
+            const allAudios = document.querySelectorAll('audio');
+            allAudios.forEach(audio => {
+                audio.play(); // สั่งเล่น
+                audio.pause(); // แล้วหยุดทันที เพื่อให้ Safari รู้ว่าเราอนุญาตแล้ว
+                audio.currentTime = 0;
+            });
+
             overlay.classList.add("active");
             nightToggle.parentElement.classList.add("hidden");
             selectionCount = 0;
@@ -323,9 +339,23 @@
         function playAudio(id, callback) {
             const audio = document.getElementById(id);
             stopCurrentAudio();
-            audio.currentTime = 0; audio.play();
-            currentPlayingAudio = audio;
-            if (callback) audio.onended = callback;
+            
+            // รีเซ็ตค่าเสียง
+            audio.currentTime = 0; 
+            
+            // บน iOS/iPadOS play() จะคืนค่าเป็น Promise
+            const playPromise = audio.play();
+
+            if (playPromise !== undefined) {
+                playPromise.then(_ => {
+                    currentPlayingAudio = audio;
+                    if (callback) audio.onended = callback;
+                }).catch(error => {
+                    console.log("Playback failed:", error);
+                    // ถ้าเสียงโดนบล็อก ให้ข้ามไปเรียก Callback ทันทีเพื่อให้เกมเดินต่อได้
+                    if (callback) callback(); 
+                });
+            }
         }
 
         function stopCurrentAudio() {

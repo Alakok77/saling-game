@@ -27,22 +27,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     btn.addEventListener("click", () => {
 
-        // 🔊 เรียกเสียงจาก Flask
-        fetch("/speak", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ text: "เริ่มเกม" })
-        })
-        .then(response => response.blob())
-        .then(blob => {
-            const url = URL.createObjectURL(blob);
-            const audio = new Audio(url);
-            audio.play();
-        });
-
-        // Animation
         btn.classList.remove("hover:scale-110");
         btn.classList.add("rounded-full");
 
@@ -61,13 +45,13 @@ document.addEventListener("DOMContentLoaded", function () {
         }, 800);
 
         setTimeout(() => {
-            window.location.href = "/game";
+            // ✅ สำคัญมาก
+            window.location.href = "./game.html";
         }, 2000);
 
     });
 
 });
 </script>
-
 </body>
 </html>

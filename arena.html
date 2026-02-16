@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salapao - Arena Master Pro (Full System)</title>
+    <title>Salapao - Arena Master Pro (iPad Optimized)</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
@@ -14,7 +14,6 @@
         .hero-card.glowing { box-shadow: 0 0 30px 10px rgba(255, 215, 0, 0.5); border: 4px solid #fff; }
         .hero-card.inactive { opacity: 0.3; filter: grayscale(1); pointer-events: none; }
 
-        /* การ์ดคว่ำ - ขยับขึ้นมาที่ 55% เพื่อไม่ให้ทับ Countdown */
         .flipped-card {
             width: 144px; height: 192px; background: #1a1a1a; border: 4px solid #facc15; border-radius: 2rem;
             display: flex; flex-direction: column; align-items: center; justify-content: center; color: #facc15; 
@@ -33,15 +32,15 @@
 </head>
 <body class="bg-black">
 
-    <audio id="toNight" src="./toNight.mp3"></audio>
-    <audio id="witch_awake" src="./witch_awake.mp3"></audio>
-    <audio id="witch_select" src="./witch_select.mp3"></audio>
-    <audio id="witch_sleep" src="./witch_sleep.mp3"></audio>
-    <audio id="constable_awake" src="./constable_awake.mp3"></audio>
-    <audio id="constable_select" src="./constable_select.mp3"></audio>
-    <audio id="constable_sleep" src="./constable_sleep.mp3"></audio>
-    <audio id="all_awake" src="./all_awake.mp3"></audio>
-    <audio id="countdownSound" src="./countdown.mp3"></audio>
+    <audio id="toNight" src="./toNight.mp3" preload="auto"></audio>
+    <audio id="witch_awake" src="./witch_awake.mp3" preload="auto"></audio>
+    <audio id="witch_select" src="./witch_select.mp3" preload="auto"></audio>
+    <audio id="witch_sleep" src="./witch_sleep.mp3" preload="auto"></audio>
+    <audio id="constable_awake" src="./constable_awake.mp3" preload="auto"></audio>
+    <audio id="constable_select" src="./constable_select.mp3" preload="auto"></audio>
+    <audio id="constable_sleep" src="./constable_sleep.mp3" preload="auto"></audio>
+    <audio id="all_awake" src="./all_awake.mp3" preload="auto"></audio>
+    <audio id="countdownSound" src="./countdown.mp3" preload="auto"></audio>
 
     <div id="arena-container">
         <div id="night-overlay"></div>
@@ -77,7 +76,7 @@
                 <div id="death-list" class="grid grid-cols-2 gap-4 max-h-60 overflow-y-auto mb-6 p-2"></div>
                 <div class="flex items-center gap-3 mb-8 bg-gray-100 p-4 rounded-2xl">
                     <input type="checkbox" id="isConstableDead" class="w-6 h-6">
-                    <label for="isConstableDead" class="font-bold text-gray-700">เป็นสายตรวจ (Constable)</label>
+                    <label for="isConstableDead" class="font-bold text-gray-700 ml-2">เป็นสายตรวจ (Constable)</label>
                 </div>
                 <div class="flex gap-4">
                     <button id="closeDeathModal" class="flex-1 bg-gray-200 py-4 rounded-2xl font-bold text-gray-600">CLOSE</button>
@@ -133,9 +132,7 @@
             const savedData = localStorage.getItem("myGameTeam");
             if (savedData) {
                 const cleanTeam = JSON.parse(savedData).map(p => ({
-                    name: p.name,
-                    emoji: p.emoji,
-                    color: p.color
+                    name: p.name, emoji: p.emoji, color: p.color
                 }));
                 localStorage.setItem("myGameTeam", JSON.stringify(cleanTeam));
             }
@@ -233,30 +230,22 @@
             currentTimerValue = seconds;
             updateTimerDisplay();
             canSelect = true;
-
             if (countdownInterval) clearInterval(countdownInterval);
-
             countdownInterval = setInterval(() => {
                 currentTimerValue--;
                 updateTimerDisplay();
-
                 if (currentTimerValue <= 5 && currentTimerValue > 0) {
-                    countdownSound.currentTime = 0;
-                    // ใช้การดักจับเหมือน playAudio
-                    countdownSound.play().catch(()=>{}); 
+                    countdownSound.currentTime = 0; 
+                    countdownSound.play().catch(()=>{});
                 }
-
                 if (currentTimerValue <= 0) {
                     clearInterval(countdownInterval);
                     canSelect = false;
-                    
-                    // ใช้เวลาหน่วงที่แน่นอนก่อนเข้า Phase ถัดไป
                     setTimeout(() => {
                         timerUI.classList.add("hidden");
-                        countdownSound.pause();
-                        countdownSound.currentTime = 0;
+                        countdownSound.pause(); countdownSound.currentTime = 0;
                         if (callback) callback();
-                    }, 800);
+                    }, 800); 
                 }
             }, 1000);
         }
@@ -283,25 +272,22 @@
             document.addEventListener('touchend', end);
         }
 
+        // iPad Optimized Night Toggle
         nightToggle.addEventListener("click", () => {
-            const allAudios = document.querySelectorAll('audio');
-            allAudios.forEach(audio => {
-                const originalVolume = audio.volume; // จำความดังเดิมไว้ (ปกติคือ 1.0)
-                audio.volume = 0;                    // ปิดเสียงให้เงียบสนิท
-                
-                // เล่นและหยุดทันทีเพื่อล้างสถานะ Block ของ Safari/iPad
-                audio.play().then(() => {
-                    audio.pause();
-                    audio.currentTime = 0;
-                    audio.volume = originalVolume;   // คืนค่าความดังกลับมาเป็นปกติ
-                }).catch(e => console.error("Audio unlock failed", e));
+            // Unlock Audio for Safari
+            document.querySelectorAll('audio').forEach(audio => {
+                audio.load();
+                audio.volume = 1.0;
             });
 
             overlay.classList.add("active");
             nightToggle.parentElement.classList.add("hidden");
             selectionCount = 0;
             document.querySelectorAll(".flipped-card").forEach(c => c.remove());
-            players.filter(p => p.isAlive).forEach(p => document.getElementById(`player-card-${p.id}`).classList.add("glowing"));
+            players.filter(p => p.isAlive).forEach(p => {
+                const c = document.getElementById(`player-card-${p.id}`);
+                if(c) c.classList.add("glowing");
+            });
 
             playAudio("toNight", () => {
                 playAudio("witch_awake", () => {
@@ -344,23 +330,20 @@
 
         function playAudio(id, callback) {
             const audio = document.getElementById(id);
+            if (!audio) return;
             stopCurrentAudio();
-            
             audio.currentTime = 0;
-            audio.volume = 1.0; // มั่นใจว่าเปิดเสียงแล้ว
-
             const playPromise = audio.play();
             if (playPromise !== undefined) {
                 playPromise.then(_ => {
                     currentPlayingAudio = audio;
-                    // ใช้ onended แบบล้างค่าเก่าทิ้งก่อนเพื่อป้องกัน event ซ้อน
                     audio.onended = () => {
                         currentPlayingAudio = null;
                         if (callback) callback();
                     };
                 }).catch(error => {
-                    console.log("iPad blocked sound, skipping to next phase...");
-                    if (callback) callback(); // ถ้าเล่นไม่ได้ ให้ข้ามไป step ถัดไปเลยเพื่อไม่ให้เกมค้าง
+                    console.error("iPad Audio Error:", error);
+                    if (callback) callback();
                 });
             }
         }

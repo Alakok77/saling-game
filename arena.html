@@ -286,9 +286,15 @@
         nightToggle.addEventListener("click", () => {
             const allAudios = document.querySelectorAll('audio');
             allAudios.forEach(audio => {
-                audio.play(); // สั่งเล่น
-                audio.pause(); // แล้วหยุดทันที เพื่อให้ Safari รู้ว่าเราอนุญาตแล้ว
-                audio.currentTime = 0;
+                const originalVolume = audio.volume; // จำความดังเดิมไว้ (ปกติคือ 1.0)
+                audio.volume = 0;                    // ปิดเสียงให้เงียบสนิท
+                
+                // เล่นและหยุดทันทีเพื่อล้างสถานะ Block ของ Safari/iPad
+                audio.play().then(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                    audio.volume = originalVolume;   // คืนค่าความดังกลับมาเป็นปกติ
+                }).catch(e => console.error("Audio unlock failed", e));
             });
 
             overlay.classList.add("active");
@@ -340,20 +346,21 @@
             const audio = document.getElementById(id);
             stopCurrentAudio();
             
-            // รีเซ็ตค่าเสียง
-            audio.currentTime = 0; 
-            
-            // บน iOS/iPadOS play() จะคืนค่าเป็น Promise
-            const playPromise = audio.play();
+            audio.currentTime = 0;
+            audio.volume = 1.0; // มั่นใจว่าเปิดเสียงแล้ว
 
+            const playPromise = audio.play();
             if (playPromise !== undefined) {
                 playPromise.then(_ => {
                     currentPlayingAudio = audio;
-                    if (callback) audio.onended = callback;
+                    // ใช้ onended แบบล้างค่าเก่าทิ้งก่อนเพื่อป้องกัน event ซ้อน
+                    audio.onended = () => {
+                        currentPlayingAudio = null;
+                        if (callback) callback();
+                    };
                 }).catch(error => {
-                    console.log("Playback failed:", error);
-                    // ถ้าเสียงโดนบล็อก ให้ข้ามไปเรียก Callback ทันทีเพื่อให้เกมเดินต่อได้
-                    if (callback) callback(); 
+                    console.log("iPad blocked sound, skipping to next phase...");
+                    if (callback) callback(); // ถ้าเล่นไม่ได้ ให้ข้ามไป step ถัดไปเลยเพื่อไม่ให้เกมค้าง
                 });
             }
         }

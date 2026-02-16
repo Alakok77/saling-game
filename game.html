@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salapao - Character Creator</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
+    </style>
+</head>
+<body class="overflow-hidden bg-yellow-900 font-sans">
+
+    <div id="bg" class="h-screen bg-[url('./background.avif')] bg-cover bg-center flex flex-col items-center">
+        
+        <div class="z-20 flex flex-col items-center gap-4 py-10 text-center shrink-0">
+            <h1 class="text-4xl md:text-5xl font-extrabold text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] uppercase tracking-wider">
+                My Characters
+            </h1>
+            <p id="counter" class="text-yellow-200 font-bold bg-black/30 px-6 py-1 rounded-full border border-yellow-500/50">
+                Team Size: 0 / 12
+            </p>
+            
+            <div class="flex gap-4">
+                <button id="addBtn"
+                    class="bg-white/90 text-yellow-800 font-bold py-4 px-12 rounded-full shadow-2xl 
+                           border-4 border-yellow-200 cursor-pointer transition-all duration-300
+                           hover:scale-105 hover:bg-yellow-500 hover:text-white hover:border-yellow-400
+                           active:scale-95 disabled:grayscale disabled:opacity-50 disabled:cursor-not-allowed">
+                    + Add Character
+                </button>
+
+                <button id="confirmPlayBtn"
+                    class="hidden bg-green-500 text-white font-bold py-4 px-12 rounded-full shadow-2xl 
+                           border-4 border-green-200 cursor-pointer transition-all duration-300
+                           hover:scale-105 hover:bg-green-600 hover:border-green-300 active:scale-95">
+                    START BATTLE! ⚔️
+                </button>
+            </div>
+        </div>
+
+        <div id="cardList" 
+             class="w-full max-w-7xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 
+                    gap-12 overflow-y-auto p-16 custom-scrollbar transition-all duration-500">
+        </div>
+    </div>
+
+    <div id="popup" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md invisible opacity-0 transition-all duration-300">
+        <div class="bg-white p-8 rounded-[2.5rem] shadow-2xl w-[90%] max-w-md transform transition-all scale-90 border-8 border-yellow-100" id="formContainer">
+            <h2 class="text-3xl font-black text-yellow-800 mb-6 text-center italic uppercase">New Hero</h2>
+            <form id="charForm" class="space-y-6">
+                <div>
+                    <label class="block text-yellow-900 text-sm font-black mb-2 uppercase ml-2">Character Name</label>
+                    <input type="text" id="charName" maxlength="15" required
+                        class="w-full px-6 py-4 bg-yellow-50 border-2 border-yellow-200 rounded-2xl focus:outline-none focus:border-yellow-500 text-lg font-bold text-yellow-900 transition-all shadow-inner"
+                        placeholder="Enter name...">
+                </div>
+                <div class="flex gap-4">
+                    <button type="button" id="closeBtn" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold py-4 rounded-2xl transition-all">Cancel</button>
+                    <button type="submit" class="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-4 rounded-2xl shadow-lg transition-all">Confirm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="confirmPopup" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-lg invisible opacity-0 transition-all duration-300">
+        <div class="bg-yellow-100 p-10 rounded-[3rem] shadow-2xl text-center border-8 border-yellow-500 max-w-sm">
+            <div class="text-6xl mb-4">🚀</div>
+            <h2 class="text-3xl font-black text-yellow-900 mb-2">READY?</h2>
+            <p class="text-yellow-800 font-bold mb-8">คุณพร้อมเริ่มการต่อสู้ด้วยทีมนี้แล้วใช่ไหม?</p>
+            <div class="flex flex-col gap-3">
+                <button id="goBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-black py-4 rounded-2xl text-xl shadow-lg transition-all active:scale-95">ไปกันเลย!</button>
+                <button id="cancelGoBtn" class="w-full text-yellow-700 font-bold py-2 hover:underline">ยังก่อน ขอแก้ทีมแป๊บ</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const popup = document.getElementById("popup");
+        const confirmPopup = document.getElementById("confirmPopup");
+        const formContainer = document.getElementById("formContainer");
+        const addBtn = document.getElementById("addBtn");
+        const confirmPlayBtn = document.getElementById("confirmPlayBtn");
+        const charForm = document.getElementById("charForm");
+        const cardList = document.getElementById("cardList");
+        const counter = document.getElementById("counter");
+
+        const MAX_CHARACTERS = 12;
+
+        // --- ส่วนที่เพิ่ม: โหลดข้อมูลเดิมจากความจำ ---
+        window.addEventListener("load", () => {
+            const savedData = localStorage.getItem("myGameTeam");
+            if (savedData) {
+                const team = JSON.parse(savedData);
+                team.forEach(hero => {
+                    createCard(hero.name, hero.emoji, hero.color);
+                });
+                updateUI();
+            }
+        });
+
+        addBtn.addEventListener("click", () => {
+            popup.classList.remove("invisible", "opacity-0");
+            formContainer.classList.add("scale-100");
+        });
+
+        const hidePopup = () => {
+            popup.classList.add("opacity-0");
+            formContainer.classList.remove("scale-100");
+            setTimeout(() => popup.classList.add("invisible"), 300);
+            charForm.reset();
+        };
+
+        document.getElementById("closeBtn").addEventListener("click", hidePopup);
+
+        charForm.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const name = document.getElementById("charName").value.trim();
+            if (cardList.children.length < MAX_CHARACTERS) {
+                createCard(name);
+                hidePopup();
+                updateUI();
+                saveCurrentTeam(); // เซฟทันทีที่เพิ่ม
+            }
+        });
+
+        // แก้ไขฟังก์ชัน createCard ให้รับค่าสีและอิโมจิเดิมได้
+        function createCard(name, savedEmoji = null, savedColor = null) {
+            const card = document.createElement("div");
+            card.className = "group relative bg-white/90 backdrop-blur-sm p-8 rounded-[3rem] shadow-xl border-4 border-white flex flex-col items-center justify-center gap-6 transition-all duration-500 hover:-translate-y-4 hover:scale-110 hover:shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:bg-white animate-in fade-in zoom-in slide-in-from-bottom-10";
+            
+            const emojis = ['⚔️', '🪄', '🛡️', '🏹', '🧪', '🐲', '🐱', '👺', '💎', '🔥', '🌟', '🍀'];
+            const randomEmoji = savedEmoji || emojis[Math.floor(Math.random() * emojis.length)];
+            
+            const colors = ['bg-rose-400', 'bg-sky-400', 'bg-emerald-400', 'bg-amber-400', 'bg-violet-400', 'bg-orange-400', 'bg-pink-400'];
+            const randomBg = savedColor || colors[Math.floor(Math.random() * colors.length)];
+
+            card.dataset.emoji = randomEmoji;
+            card.dataset.color = randomBg;
+
+            card.innerHTML = `
+                <button class="delete-btn absolute top-6 right-6 w-9 h-9 bg-red-500 text-white rounded-full border-2 border-white opacity-0 group-hover:opacity-100 transition-all hover:bg-red-700 font-bold flex items-center justify-center shadow-lg z-30 cursor-pointer">✕</button>
+                <div class="w-32 h-32 ${randomBg} rounded-full border-4 border-white shadow-lg flex items-center justify-center text-6xl group-hover:rotate-12 transition-transform duration-500">
+                    ${randomEmoji}
+                </div>
+                <h3 class="text-3xl font-black text-gray-800 tracking-tight text-center break-all px-2">${name}</h3>
+            `;
+
+            card.querySelector('.delete-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                card.classList.add('scale-0', 'opacity-0');
+                setTimeout(() => { 
+                    card.remove(); 
+                    updateUI(); 
+                    saveCurrentTeam(); // เซฟทันทีที่ลบ
+                }, 300);
+            });
+
+            cardList.appendChild(card);
+        }
+
+        function updateUI() {
+            const count = cardList.children.length;
+            counter.innerText = `Team Size: ${count} / ${MAX_CHARACTERS}`;
+            addBtn.disabled = count >= MAX_CHARACTERS;
+            addBtn.innerText = count >= MAX_CHARACTERS ? "Team Full" : "+ Add Character";
+            
+            if (count > 0) confirmPlayBtn.classList.remove("hidden");
+            else confirmPlayBtn.classList.add("hidden");
+        }
+
+        // ฟังก์ชันช่วยในการบันทึกข้อมูลทีมปัจจุบันลง LocalStorage
+        function saveCurrentTeam() {
+            const team = [];
+            document.querySelectorAll("#cardList > div").forEach(c => {
+                team.push({
+                    name: c.querySelector("h3").innerText,
+                    emoji: c.dataset.emoji,
+                    color: c.dataset.color
+                });
+            });
+            localStorage.setItem("myGameTeam", JSON.stringify(team));
+        }
+
+        confirmPlayBtn.addEventListener("click", () => {
+            confirmPopup.classList.remove("invisible", "opacity-0");
+        });
+
+        document.getElementById("cancelGoBtn").addEventListener("click", () => {
+            confirmPopup.classList.add("opacity-0");
+            setTimeout(() => confirmPopup.classList.add("invisible"), 300);
+        });
+
+        document.getElementById("goBtn").addEventListener("click", () => {
+            saveCurrentTeam(); // บันทึกก่อนเปลี่ยนหน้า
+            window.location.href = "arena.html";
+        });
+    </script>
+</body>
+</html>

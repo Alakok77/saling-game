@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salapao - Arena Master Pro (Full System)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+        #arena-container { width: 100vw; height: 100vh; position: relative; background-image: url('./background.avif'); background-size: cover; background-position: center; touch-action: none; }
+        #night-overlay { position: absolute; inset: 0; background-color: rgba(0, 0, 0, 0); pointer-events: none; z-index: 5; transition: background-color 1.5s ease-in-out, backdrop-filter 1.5s ease-in-out; }
+        #night-overlay.active { background-color: rgba(0, 0, 0, 0.6); backdrop-filter: brightness(0.5) contrast(1.1); }
+        .hero-card { position: absolute; user-select: none; touch-action: none; z-index: 10; transition: box-shadow 0.5s ease, transform 0.2s ease, opacity 0.5s ease; }
+        .hero-card.glowing { box-shadow: 0 0 30px 10px rgba(255, 215, 0, 0.5); border: 4px solid #fff; }
+        .hero-card.inactive { opacity: 0.3; filter: grayscale(1); pointer-events: none; }
+
+        /* การ์ดคว่ำ - ขยับขึ้นมาที่ 55% เพื่อไม่ให้ทับ Countdown */
+        .flipped-card {
+            width: 144px; height: 192px; background: #1a1a1a; border: 4px solid #facc15; border-radius: 2rem;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; color: #facc15; 
+            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+            position: absolute; top: 55%; transform: translate(-50%, -50%);
+            z-index: 80; transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: cardEntry 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer;
+        }
+        .flipped-card.revealed { background: #ffffff; color: #1a1a1a; border-color: #ffffff; transform: translate(-50%, -50%) rotateY(180deg); }
+        .flipped-card.revealed .inner-content { transform: rotateY(-180deg); }
+        .flipped-card.revealed .name-label { opacity: 1; }
+        @keyframes cardEntry { 0% { transform: translate(-50%, -50%) scale(0); opacity: 0; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+        .fade-out-card { animation: cardExit 0.5s forwards; }
+        @keyframes cardExit { 100% { transform: translate(-50%, -50%) scale(0); opacity: 0; } }
+    </style>
+</head>
+<body class="bg-black">
+
+    <audio id="toNight" src="./toNight.mp3"></audio>
+    <audio id="witch_awake" src="./witch_awake.mp3"></audio>
+    <audio id="witch_select" src="./witch_select.mp3"></audio>
+    <audio id="witch_sleep" src="./witch_sleep.mp3"></audio>
+    <audio id="constable_awake" src="./constable_awake.mp3"></audio>
+    <audio id="constable_select" src="./constable_select.mp3"></audio>
+    <audio id="constable_sleep" src="./constable_sleep.mp3"></audio>
+    <audio id="all_awake" src="./all_awake.mp3"></audio>
+    <audio id="countdownSound" src="./countdown.mp3"></audio>
+
+    <div id="arena-container">
+        <div id="night-overlay"></div>
+        
+        <div class="absolute inset-x-0 top-6 flex flex-col items-center pointer-events-none z-50 gap-4">
+            <h1 class="text-4xl font-black text-white italic uppercase opacity-20">Arena Mode</h1>
+            <div class="flex gap-4 pointer-events-auto">
+                <button id="nightToggle" class="bg-black/50 hover:bg-black/80 text-white font-bold py-3 px-8 rounded-full border-2 border-white/30 backdrop-blur-md cursor-pointer transition-all">🌙 ENTER THE NIGHT</button>
+                <button id="deathReportBtn" class="bg-red-600/80 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-full border-2 border-red-400/30 backdrop-blur-md cursor-pointer transition-all">💀 แจ้งข่าวคนขิต</button>
+            </div>
+        </div>
+
+        <div id="timer-ui" class="hidden absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 text-center pointer-events-none">
+            <div id="timer-number" class="text-9xl font-black transition-colors duration-200">30</div>
+            <p id="timer-label" class="text-yellow-400 font-bold uppercase mt-2 animate-pulse"></p>
+        </div>
+
+        <div id="select-popup" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm invisible opacity-0 transition-all duration-300">
+            <div class="bg-white p-8 rounded-[3rem] shadow-2xl w-[90%] max-w-sm text-center">
+                <div id="target-emoji" class="text-6xl mb-4">👤</div>
+                <h2 id="popup-title" class="text-2xl font-black text-gray-800 mb-2 italic uppercase">Confirm?</h2>
+                <p id="popup-desc" class="text-gray-500 font-bold mb-8"></p>
+                <div class="flex gap-4">
+                    <button id="cancel-selection" class="flex-1 bg-gray-200 py-4 rounded-2xl font-bold text-gray-600">CANCEL</button>
+                    <button id="confirm-selection" class="flex-1 bg-yellow-600 py-4 rounded-2xl font-bold text-white shadow-lg">CONFIRM</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="death-modal" class="fixed inset-0 z-[110] flex items-center justify-center bg-black/90 backdrop-blur-md hidden">
+            <div class="bg-white w-[90%] max-w-md rounded-[3rem] p-8">
+                <h2 class="text-3xl font-black text-gray-900 mb-6 italic uppercase">Who died?</h2>
+                <div id="death-list" class="grid grid-cols-2 gap-4 max-h-60 overflow-y-auto mb-6 p-2"></div>
+                <div class="flex items-center gap-3 mb-8 bg-gray-100 p-4 rounded-2xl">
+                    <input type="checkbox" id="isConstableDead" class="w-6 h-6">
+                    <label for="isConstableDead" class="font-bold text-gray-700">เป็นสายตรวจ (Constable)</label>
+                </div>
+                <div class="flex gap-4">
+                    <button id="closeDeathModal" class="flex-1 bg-gray-200 py-4 rounded-2xl font-bold text-gray-600">CLOSE</button>
+                    <button id="confirmDeath" class="flex-1 bg-red-600 py-4 rounded-2xl font-bold text-white shadow-lg">CONFIRM</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="game-over-screen" class="fixed inset-0 z-[200] bg-black/95 flex flex-col items-center justify-center hidden opacity-0 transition-opacity duration-1000">
+            <h1 class="text-8xl font-black text-red-600 italic uppercase mb-12 drop-shadow-[0_0_30px_rgba(220,38,38,0.5)] tracking-tighter">Game Over</h1>
+            <button onclick="resetAndPlayAgain()" class="bg-white text-black font-black py-4 px-12 rounded-full hover:bg-gray-200 transition-all cursor-pointer shadow-[0_0_20px_rgba(255,255,255,0.3)]">
+                PLAY AGAIN
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let players = [];
+        let canSelect = false;
+        let countdownInterval;
+        let currentTimerValue = 0;
+        let selectionCount = 0;
+        let isConstableAlive = true;
+        let selectedDeathId = null;
+        let currentPlayingAudio = null;
+
+        const overlay = document.getElementById("night-overlay");
+        const nightToggle = document.getElementById("nightToggle");
+        const timerUI = document.getElementById("timer-ui");
+        const timerNumber = document.getElementById("timer-number");
+        const countdownSound = document.getElementById("countdownSound");
+        const selectPopup = document.getElementById("select-popup");
+
+        window.addEventListener("load", () => {
+            const savedData = localStorage.getItem("myGameTeam");
+            if (savedData) {
+                players = JSON.parse(savedData).map((p, i) => ({ ...p, id: i, isAlive: true }));
+                renderArena();
+            }
+        });
+
+        function checkGameOver() {
+            const alivePlayers = players.filter(p => p.isAlive);
+            if (alivePlayers.length <= 1) {
+                const gameOverScreen = document.getElementById("game-over-screen");
+                gameOverScreen.classList.remove("hidden");
+                setTimeout(() => gameOverScreen.classList.add("opacity-100"), 100);
+                stopCurrentAudio();
+            }
+        }
+
+        function resetAndPlayAgain() {
+            const savedData = localStorage.getItem("myGameTeam");
+            if (savedData) {
+                const cleanTeam = JSON.parse(savedData).map(p => ({
+                    name: p.name,
+                    emoji: p.emoji,
+                    color: p.color
+                }));
+                localStorage.setItem("myGameTeam", JSON.stringify(cleanTeam));
+            }
+            window.location.href = 'game.html';
+        }
+
+        function renderArena() {
+            const currentPositions = {};
+            players.forEach(p => {
+                const el = document.getElementById(`player-card-${p.id}`);
+                if (el) currentPositions[p.id] = { left: el.style.left, top: el.style.top };
+            });
+
+            document.querySelectorAll(".hero-card").forEach(c => c.remove());
+            players.forEach((player) => {
+                const card = createHeroCard(player);
+                if (currentPositions[player.id]) {
+                    card.style.left = currentPositions[player.id].left;
+                    card.style.top = currentPositions[player.id].top;
+                }
+                if (!player.isAlive) {
+                    card.classList.add("inactive");
+                    card.style.pointerEvents = "none"; 
+                }
+                card.onclick = () => { if (canSelect && player.isAlive) openSelectionConfirm(player); };
+            });
+        }
+
+        function createHeroCard(player) {
+            const card = document.createElement("div");
+            card.id = `player-card-${player.id}`;
+            card.className = "hero-card w-32 h-44 bg-white/90 rounded-[2rem] shadow-xl border-4 border-white flex flex-col items-center p-3 cursor-grab";
+            card.style.left = (60 + (player.id * 140 % (window.innerWidth - 150))) + "px";
+            card.style.top = (220 + (player.id * 40 % (window.innerHeight - 350))) + "px";
+            card.innerHTML = `<div class="w-20 h-20 ${player.color} rounded-2xl flex items-center justify-center text-4xl mb-3 pointer-events-none">${player.emoji}</div>
+                              <h3 class="text-sm font-black text-gray-800 text-center uppercase pointer-events-none">${player.name}</h3>`;
+            document.getElementById("arena-container").appendChild(card);
+            initDrag(card);
+            return card;
+        }
+
+        function openPopup(title, desc, emoji, onConfirm) {
+            document.getElementById("popup-title").innerText = title;
+            document.getElementById("popup-desc").innerHTML = desc;
+            document.getElementById("target-emoji").innerText = emoji;
+            selectPopup.classList.remove("invisible", "opacity-0");
+            document.getElementById("confirm-selection").onclick = () => { onConfirm(); closePopup(); };
+        }
+
+        function closePopup() { selectPopup.classList.add("invisible", "opacity-0"); }
+        document.getElementById("cancel-selection").onclick = closePopup;
+
+        function openSelectionConfirm(hero) {
+            openPopup("Confirm Selection?", `แน่ใจหรือไม่ว่าจะเลือก <span class="text-red-600">${hero.name}</span>?`, hero.emoji, () => {
+                selectionCount++;
+                createFlippedCard(selectionCount, hero);
+                canSelect = false;
+                if (currentTimerValue > 5) currentTimerValue = 6;
+            });
+        }
+
+        function createFlippedCard(count, hero) {
+            const card = document.createElement("div");
+            card.className = "flipped-card";
+            card.innerHTML = `<div class="inner-content flex flex-col items-center">
+                                <span class="emoji text-6xl">📜</span>
+                                <span class="name-label opacity-0 text-sm font-black mt-4 uppercase tracking-widest transition-opacity duration-500">${hero.name}</span>
+                              </div>`;
+            if (count === 1) {
+                card.id = "witch-flipped-card"; card.style.left = "calc(50% - 100px)";
+                card.onclick = () => {
+                    if (!card.classList.contains("revealed") && !overlay.classList.contains("active")) {
+                        openPopup("Reveal Witch?", "ต้องการเปิดการ์ดที่แม่มดเลือกใช่หรือไม่?", hero.emoji, () => {
+                            card.classList.add("revealed");
+                            card.querySelector(".emoji").innerText = hero.emoji;
+                            card.querySelector(".name-label").classList.remove("opacity-0");
+                            setTimeout(() => {
+                                const allFlipped = document.querySelectorAll(".flipped-card");
+                                allFlipped.forEach(c => c.classList.add("fade-out-card"));
+                                setTimeout(() => allFlipped.forEach(c => c.remove()), 500);
+                            }, 10000);
+                        });
+                    }
+                };
+            } else {
+                card.id = "constable-flipped-card"; card.style.left = "calc(50% + 100px)";
+                card.dataset.emoji = hero.emoji; card.dataset.name = hero.name;
+            }
+            document.getElementById("arena-container").appendChild(card);
+        }
+
+        function startCountdown(seconds, label, callback) {
+            timerUI.classList.remove("hidden");
+            document.getElementById("timer-label").innerText = label;
+            currentTimerValue = seconds;
+            updateTimerDisplay();
+            canSelect = true;
+            if (countdownInterval) clearInterval(countdownInterval);
+            countdownInterval = setInterval(() => {
+                currentTimerValue--;
+                updateTimerDisplay();
+                if (currentTimerValue <= 5 && currentTimerValue > 0) {
+                    countdownSound.currentTime = 0; countdownSound.play();
+                }
+                if (currentTimerValue <= 0) {
+                    clearInterval(countdownInterval);
+                    canSelect = false;
+                    setTimeout(() => {
+                        timerUI.classList.add("hidden");
+                        countdownSound.pause(); countdownSound.currentTime = 0;
+                        if (callback) callback();
+                    }, 800); 
+                }
+            }, 1000);
+        }
+
+        function updateTimerDisplay() {
+            timerNumber.innerText = currentTimerValue;
+            timerNumber.className = currentTimerValue <= 5 ? "text-9xl font-black text-red-600 scale-110" : "text-9xl font-black text-white";
+        }
+
+        function initDrag(el) {
+            let isDragging = false, startX, startY, initialLeft, initialTop;
+            const start = (x, y) => { 
+                if (el.classList.contains("inactive")) return;
+                isDragging = true; el.style.zIndex = "1000"; 
+                startX = x; startY = y; initialLeft = el.offsetLeft; initialTop = el.offsetTop; 
+            };
+            const move = (x, y) => { if (isDragging) { el.style.left = (initialLeft + (x - startX)) + "px"; el.style.top = (initialTop + (y - startY)) + "px"; } };
+            const end = () => { isDragging = false; el.style.zIndex = "10"; };
+            el.onmousedown = e => start(e.clientX, e.clientY);
+            document.addEventListener('mousemove', e => move(e.clientX, e.clientY));
+            document.addEventListener('mouseup', end);
+            el.ontouchstart = e => start(e.touches[0].clientX, e.touches[0].clientY);
+            document.addEventListener('touchmove', e => move(e.touches[0].clientX, e.touches[0].clientY), {passive: false});
+            document.addEventListener('touchend', end);
+        }
+
+        nightToggle.addEventListener("click", () => {
+            overlay.classList.add("active");
+            nightToggle.parentElement.classList.add("hidden");
+            selectionCount = 0;
+            document.querySelectorAll(".flipped-card").forEach(c => c.remove());
+            players.filter(p => p.isAlive).forEach(p => document.getElementById(`player-card-${p.id}`).classList.add("glowing"));
+
+            playAudio("toNight", () => {
+                playAudio("witch_awake", () => {
+                    playAudio("witch_select", () => {
+                        startCountdown(30, "Witch Selecting", () => {
+                            playAudio("witch_sleep", () => {
+                                if (isConstableAlive) {
+                                    playAudio("constable_awake", () => {
+                                        playAudio("constable_select", () => {
+                                            startCountdown(30, "Constable Selecting", () => {
+                                                playAudio("constable_sleep", () => morningFlow());
+                                            });
+                                        });
+                                    });
+                                } else { setTimeout(morningFlow, 1000); }
+                            });
+                        });
+                    });
+                });
+            });
+        });
+
+        function morningFlow() {
+            playAudio("all_awake", () => {
+                overlay.classList.remove("active");
+                document.querySelectorAll(".hero-card").forEach(c => c.classList.remove("glowing"));
+                nightToggle.parentElement.classList.remove("hidden");
+                checkGameOver();
+                const conCard = document.getElementById("constable-flipped-card");
+                if (conCard) {
+                    setTimeout(() => {
+                        conCard.classList.add("revealed");
+                        conCard.querySelector(".emoji").innerText = conCard.dataset.emoji;
+                        conCard.querySelector(".name-label").classList.remove("opacity-0");
+                        conCard.querySelector(".name-label").innerText = conCard.dataset.name;
+                    }, 1000);
+                }
+            });
+        }
+
+        function playAudio(id, callback) {
+            const audio = document.getElementById(id);
+            stopCurrentAudio();
+            audio.currentTime = 0; audio.play();
+            currentPlayingAudio = audio;
+            if (callback) audio.onended = callback;
+        }
+
+        function stopCurrentAudio() {
+            if (currentPlayingAudio) { currentPlayingAudio.pause(); currentPlayingAudio.currentTime = 0; currentPlayingAudio = null; }
+        }
+
+        document.getElementById("deathReportBtn").onclick = () => {
+            const list = document.getElementById("death-list");
+            list.innerHTML = "";
+            players.filter(p => p.isAlive).forEach(p => {
+                const b = document.createElement("button");
+                b.className = "p-4 bg-gray-100 rounded-2xl font-bold transition-all border-4 border-transparent";
+                b.innerHTML = `${p.emoji} ${p.name}`;
+                b.onclick = () => { 
+                    selectedDeathId = p.id; 
+                    document.querySelectorAll("#death-list button").forEach(x => x.style.borderColor="transparent"); 
+                    b.style.borderColor="#ef4444"; 
+                };
+                list.appendChild(b);
+            });
+            document.getElementById("death-modal").classList.remove("hidden");
+        };
+
+        document.getElementById("confirmDeath").onclick = () => {
+            if (selectedDeathId !== null) {
+                players.find(p => p.id === selectedDeathId).isAlive = false;
+                if (document.getElementById("isConstableDead").checked) isConstableAlive = false;
+                renderArena();
+                document.getElementById("death-modal").classList.add("hidden");
+                selectedDeathId = null;
+                document.getElementById("isConstableDead").checked = false;
+                setTimeout(checkGameOver, 500);
+            }
+        };
+        document.getElementById("closeDeathModal").onclick = () => document.getElementById("death-modal").classList.add("hidden");
+    </script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Salapao - Character Creator</title>
+    <title>Saling Game</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
@@ -18,10 +18,10 @@
         
         <div class="z-20 flex flex-col items-center gap-4 py-10 text-center shrink-0">
             <h1 class="text-4xl md:text-5xl font-extrabold text-white drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] uppercase tracking-wider">
-                My Characters
+                ผู้เล่นทั้งหมด
             </h1>
             <p id="counter" class="text-yellow-200 font-bold bg-black/30 px-6 py-1 rounded-full border border-yellow-500/50">
-                Team Size: 0 / 12
+                จำนวนผู้เล่น: 0 / 12
             </p>
             
             <div class="flex gap-4">
@@ -30,14 +30,14 @@
                            border-4 border-yellow-200 cursor-pointer transition-all duration-300
                            hover:scale-105 hover:bg-yellow-500 hover:text-white hover:border-yellow-400
                            active:scale-95 disabled:grayscale disabled:opacity-50 disabled:cursor-not-allowed">
-                    + Add Character
+                    + เพิ่มผู้เล่น
                 </button>
 
                 <button id="confirmPlayBtn"
                     class="hidden bg-green-500 text-white font-bold py-4 px-12 rounded-full shadow-2xl 
                            border-4 border-green-200 cursor-pointer transition-all duration-300
                            hover:scale-105 hover:bg-green-600 hover:border-green-300 active:scale-95">
-                    START BATTLE! ⚔️
+                    เริ่มเกมส์ ⚔️
                 </button>
             </div>
         </div>
@@ -50,17 +50,17 @@
 
     <div id="popup" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md invisible opacity-0 transition-all duration-300">
         <div class="bg-white p-8 rounded-[2.5rem] shadow-2xl w-[90%] max-w-md transform transition-all scale-90 border-8 border-yellow-100" id="formContainer">
-            <h2 class="text-3xl font-black text-yellow-800 mb-6 text-center italic uppercase">New Hero</h2>
+            <h2 class="text-3xl font-black text-yellow-800 mb-6 text-center italic uppercase">ผู้เล่นใหม่</h2>
             <form id="charForm" class="space-y-6">
                 <div>
-                    <label class="block text-yellow-900 text-sm font-black mb-2 uppercase ml-2">Character Name</label>
+                    <label class="block text-yellow-900 text-sm font-black mb-2 uppercase ml-2">ชื่อเสียงเรียงนาม</label>
                     <input type="text" id="charName" maxlength="15" required
                         class="w-full px-6 py-4 bg-yellow-50 border-2 border-yellow-200 rounded-2xl focus:outline-none focus:border-yellow-500 text-lg font-bold text-yellow-900 transition-all shadow-inner"
-                        placeholder="Enter name...">
+                        placeholder="บอกชื่อของคุณ...">
                 </div>
                 <div class="flex gap-4">
-                    <button type="button" id="closeBtn" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold py-4 rounded-2xl transition-all">Cancel</button>
-                    <button type="submit" class="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-4 rounded-2xl shadow-lg transition-all">Confirm</button>
+                    <button type="button" id="closeBtn" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-500 font-bold py-4 rounded-2xl transition-all">ยกเลิก</button>
+                    <button type="submit" class="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-4 rounded-2xl shadow-lg transition-all">ยืนยัน</button>
                 </div>
             </form>
         </div>
